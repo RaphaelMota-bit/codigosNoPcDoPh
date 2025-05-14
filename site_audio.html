@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Controle por Voz</title>
+</head>
+<body>
+  <h1>Fale para controlar o Arduino</h1>
+  <button id="startBtn">Gravar</button>
+  <button id="stopBtn" disabled>Parar e Enviar</button>
+  <p id="resultado"></p>
+
+  <script>
+    let mediaRecorder;
+    let chunks = [];
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const resultado = document.getElementById('resultado');
+
+    startBtn.onclick = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('audio', blob);
+
+        fetch('/upload_audio', {
+          method: 'POST',
+          body: formData
+        })
+        .then(res => res.text())
+        .then(text => resultado.innerText = "Você disse: " + text)
+        .catch(err => resultado.innerText = "Erro ao enviar áudio.");
+
+        chunks = [];
+      };
+
+      mediaRecorder.start();
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+    };
+
+    stopBtn.onclick = () => {
+      mediaRecorder.stop();
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    };
+  </script>
+</body>
+</html>
